@@ -1,6 +1,4 @@
-#!/bin/bash
-# Makes a remote port available locally (e.g. access private database through local port)
-
+#!/bin/sh
 
 verify_deps() {
     if ! command -v autossh >/dev/null; then
@@ -13,20 +11,18 @@ verify_deps() {
 }
 
 show_help() {
-    echo "Makes a remote port available locally:"
-    echo "  $0 [-p <ssh_port>] -u <user> -h <host> -r <remote_port> -l <local_port>"
-    echo "Example (SSH into admin@db.internal and make db.internal:3306 accessible through localhost:3307):"
-    echo "  $0 -u admin -h db.internal -r 3306 -l 3307"
+    echo "Usage: $0 -r <remote_port> [-p <ssh_port>] -u <user> -h <host> -l <local_port>" >&2
+    echo "Pull localhost:<remote_port> on 'ssh -p <ssh_port> <user>@<host>' to localhost:<local_port> on your machine." >&2
     exit 1
 }
 
 # Parse arguments
-while getopts "p:u:h:r:l:" opt; do
+while getopts "r:p:u:h:l:" opt; do
     case "$opt" in
+        r) REMOTE_PORT="$OPTARG" ;;
         p) SSH_PORT="$OPTARG" ;;
         u) USER="$OPTARG" ;;
         h) HOST="$OPTARG" ;;
-        r) REMOTE_PORT="$OPTARG" ;;
         l) LOCAL_PORT="$OPTARG" ;;
         *) show_help ;;
     esac
@@ -35,14 +31,18 @@ done
 # Validate
 verify_deps
 
-[[ -z "$USER" || -z "$HOST" || -z "$REMOTE_PORT" || -z "$LOCAL_PORT" ]] && show_help
+if [ -z "$REMOTE_PORT" ] || [ -z "$USER" ] || [ -z "$HOST" ] || [ -z "$LOCAL_PORT" ]
+then
+    show_help
+fi
 
-if [[ -z "$SSH_PORT" ]]; then
+if [ -z "$SSH_PORT" ]
+then
     SSH_PORT=22
 fi
 
 # Main loop
-echo "Pulling $HOST:$REMOTE_PORT to local port $LOCAL_PORT (Press Ctrl+C to stop)"
+echo "Pulling localhost:${REMOTE_PORT} on 'ssh -p ${SSH_PORT} ${USER}@${HOST}' to localhost:${LOCAL_PORT} on your machine (Press Ctrl+C to stop)"
 
 autossh -M 0 \
     -o "ServerAliveInterval 30" \
